@@ -349,3 +349,187 @@ private:
         }
     }
 };
+
+#include "TokenType.h"
+#include "ast.h"
+#include <vector>
+#include <stdexcept>
+#include <memory>
+#include <unordered_map>
+#include <optional>
+#include <functional>
+
+class Parser {
+public:
+    Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
+
+    std::shared_ptr<ProgramNode> parseProgram() {
+        auto program = std::make_shared<ProgramNode>();
+        while (!isAtEnd()) {
+            auto stmt = parseStatement();
+            if (stmt) program->body.push_back(stmt);
+        }
+        return program;
+    }
+
+private:
+    const std::vector<Token>& tokens;
+    size_t current;
+
+    Token peek() const { return tokens[current]; }
+    Token previous() const { return tokens[current - 1]; }
+    Token advance() { return isAtEnd() ? tokens[current] : tokens[current++]; }
+    bool isAtEnd() const { return peek().type == TokenType::END_OF_FILE; }
+    bool match(TokenType type) { if (peek().type == type) { advance(); return true; } return false; }
+
+    Token consume(TokenType type, const std::string& errorMessage) {
+        if (match(type)) return previous();
+        throw std::runtime_error("Parse Error: " + errorMessage);
+    }
+
+    bool check(TokenType type) const { return !isAtEnd() && peek().type == type; }
+
+    ASTNodePtr parseStatement();
+
+    // === Extended Taurus Lang Parsing ===
+
+    ASTNodePtr parseExtendedKeyword() {
+        Token token = peek();
+        switch (token.type) {
+            case TokenType::INSTEAD_OF:
+            case TokenType::UNROLL:
+            case TokenType::REQUEST:
+            case TokenType::BYPASS:
+            case TokenType::DURATION:
+            case TokenType::EXCEPT:
+            case TokenType::DEFER:
+            case TokenType::PAUSE:
+            case TokenType::RESUME:
+            case TokenType::LISTEN:
+            case TokenType::WATCH:
+            case TokenType::ENCRYPT:
+            case TokenType::OBFUSCATE:
+            case TokenType::CIPHER:
+            case TokenType::PING:
+            case TokenType::BLOCK:
+            case TokenType::DENY:
+            case TokenType::ALLOW:
+            case TokenType::ASSIGN:
+            case TokenType::REG:
+            case TokenType::CHECK:
+            case TokenType::SUM:
+            case TokenType::CHECKSUM:
+            case TokenType::STATES:
+            case TokenType::TRUTHS:
+            case TokenType::MENU:
+            case TokenType::FLAG:
+            case TokenType::ERROR:
+            case TokenType::WARNING:
+            case TokenType::COMMENT:
+            case TokenType::WHITESPACE:
+            case TokenType::INDENT:
+            case TokenType::RAISE:
+            case TokenType::COUNTERS:
+            case TokenType::CHECKPOINTS:
+            case TokenType::LISTS:
+            case TokenType::NESTS:
+            case TokenType::BRANCHES:
+            case TokenType::NODES:
+            case TokenType::CHILDREN:
+            case TokenType::DERIVATIVES:
+            case TokenType::SEQUENCE:
+            case TokenType::QUERY:
+            case TokenType::LOOKUP:
+            case TokenType::CONTEXT:
+            case TokenType::WRAP:
+            case TokenType::INTEROP:
+            case TokenType::TASK:
+            case TokenType::SIMULATE:
+            case TokenType::POLL:
+            case TokenType::ROTATE:
+            case TokenType::FALLBACKS:
+            case TokenType::ROUTINES:
+            case TokenType::CALLS:
+            case TokenType::IDENTIFIERS:
+            case TokenType::DESCRIPTORS:
+            case TokenType::CATEGORIES:
+            case TokenType::LABELS:
+            case TokenType::FILE:
+            case TokenType::MAKE:
+            case TokenType::RUN:
+            case TokenType::ACCEPT:
+            case TokenType::COLLECT:
+            case TokenType::DO:
+            case TokenType::DELIMITERS:
+            case TokenType::BOUNDARIES:
+            case TokenType::SCHEDULERS:
+            case TokenType::TRIGGERS:
+            case TokenType::EVENTS:
+            case TokenType::APPEND:
+            case TokenType::MATRIX:
+            case TokenType::VECTOR:
+            case TokenType::FOLD:
+            case TokenType::ENVELOPE:
+            case TokenType::CAPSULE:
+            case TokenType::RIG:
+            case TokenType::CHAIN:
+            case TokenType::FOLDER:
+            case TokenType::SOCKET:
+            case TokenType::API:
+            case TokenType::INSPECT:
+            case TokenType::REPLACE:
+            case TokenType::DATA:
+            case TokenType::TRUEVAL:
+            case TokenType::FALSEVAL:
+            case TokenType::NULLVAL:
+            case TokenType::POINTERS:
+            case TokenType::ACTIONS:
+            case TokenType::RANGE:
+            case TokenType::KEY:
+            case TokenType::SCALE:
+            case TokenType::WEIGHTS:
+            case TokenType::REFER:
+            case TokenType::CROSSREF:
+            case TokenType::VALIDATE:
+            case TokenType::SECURE:
+            case TokenType::UNSECURE:
+            case TokenType::SAFE:
+            case TokenType::PRIVATE:
+            case TokenType::PUBLIC:
+            case TokenType::RESULT:
+            case TokenType::RESOLVE:
+            case TokenType::MEMORY:
+            case TokenType::SWEEP:
+            case TokenType::GARBAGE:
+            case TokenType::FILTER:
+            case TokenType::PROXY:
+            case TokenType::PROBE:
+            case TokenType::PRIMITIVES:
+            case TokenType::CONDITIONALS:
+            case TokenType::BOOLEANS:
+            case TokenType::LOGIC:
+            case TokenType::TRICKLE:
+            case TokenType::ALT:
+            case TokenType::SUBVERT:
+                advance();
+                return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::KeywordAction, token.line, token.column });
+            default:
+                return nullptr;
+        }
+    }
+
+    ASTNodePtr parseNamespace();
+    ASTNodePtr parseLabel();
+    ASTNodePtr parseGoto();
+    ASTNodePtr parseArray();
+    ASTNodePtr parseTuple();
+    ASTNodePtr parseMap();
+    ASTNodePtr parseProofCheck();
+    ASTNodePtr parseModifiers();
+    ASTNodePtr parseSubroutine();
+    ASTNodePtr parseRecurse();
+
+    std::vector<ASTNodePtr> parseBlock();
+    ASTNodePtr parseExpression();
+};
+
