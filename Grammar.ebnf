@@ -1,0 +1,32 @@
+program         ::= { statement } ;
+statement       ::= init_stmt | assign_stmt | control_stmt | macro_stmt | func_stmt | return_stmt ;
+
+init_stmt       ::= "Init" identifier assign_op expression ";" ;
+assign_stmt     ::= identifier assign_op expression ";" ;
+
+control_stmt    ::= if_stmt | for_stmt | while_stmt | try_stmt ;
+
+if_stmt         ::= "if" "(" expression ")" block [ "else" block ] ;
+for_stmt        ::= "for" "(" assign_stmt expression ";" expression ")" block ;
+while_stmt      ::= "while" "(" expression ")" block ;
+try_stmt        ::= "try" block "catch" block ;
+
+return_stmt     ::= "Return" ";" ;
+
+macro_stmt      ::= "|" identifier ":" macro_body "|" ;
+
+func_stmt       ::= "Start" block "Return" ";" ;
+
+block           ::= "{" { statement } "}" ;
+
+expression      ::= term { ( "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "&&" | "||" ) term } ;
+term            ::= identifier | number | string | "(" expression ")" ;
+
+assign_op       ::= "=" | "==" ;
+
+identifier      ::= letter { letter | digit } ;
+number          ::= digit { digit } ;
+string          ::= '"' { character } '"' ;
+
+letter          ::= "a" | ... | "z" ;
+digit           ::= "0" | ... | "9" ;
