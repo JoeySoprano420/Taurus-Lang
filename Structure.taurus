@@ -1,0 +1,8 @@
+Start
+  Init val = 5;
+  if (val > 0) {
+    val = val - 1;
+  } else {
+    throw "Invalid";
+  }
+Return;
