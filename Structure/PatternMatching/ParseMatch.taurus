@@ -1,0 +1,5 @@
+match (x) {
+  case 1: { Return; }
+  case 2: { Return; }
+  default: { throw "error"; }
+}
