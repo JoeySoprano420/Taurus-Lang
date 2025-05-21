@@ -42,6 +42,127 @@ private:
         if (match(TokenType::PIPE)) return parseMacro();
         if (match(TokenType::FUNC)) return parseFuncDecl();
         if (match(TokenType::RETURN)) return parseReturn();
+        if (match(TokenType::MATCH)) return parseMatch();
+        if (match(TokenType::ASYNC)) return parseAsync();
+        if (match(TokenType::AWAIT)) return parseAwait();
+        if (match(TokenType::MUTEX)) return parseMutex();
+        if (match(TokenType::STRUCT)) return parseStruct();
+        if (match(TokenType::CLASS)) return parseClass();
+        if (match(TokenType::ALOC)) return parseAlloc();
+        if (match(TokenType::FREE)) return parseFree();
+        return nullptr;
+    }
+
+    ASTNodePtr parseMatch() {
+        consume(TokenType::LPAREN, "Expected '(' after match");
+        auto expr = parseExpression();
+        consume(TokenType::RPAREN, "Expected ')'");
+        consume(TokenType::LBRACE, "Expected '{'");
+        while (!match(TokenType::RBRACE) && !isAtEnd()) {
+            if (match(TokenType::CASE)) {
+                parseExpression();
+                consume(TokenType::COLON, "Expected ':' after case");
+                parseBlock();
+            } else if (match(TokenType::DEFAULT)) {
+                consume(TokenType::COLON, "Expected ':' after default");
+                parseBlock();
+            }
+        }
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Match, expr->line, expr->column });
+    }
+
+    ASTNodePtr parseAsync() {
+        auto block = parseBlock();
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Async, block.front()->line, block.front()->column });
+    }
+
+    ASTNodePtr parseAwait() {
+        auto expr = parseExpression();
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Await, expr->line, expr->column });
+    }
+
+    ASTNodePtr parseMutex() {
+        auto block = parseBlock();
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Mutex, block.front()->line, block.front()->column });
+    }
+
+    ASTNodePtr parseStruct() {
+        Token name = consume(TokenType::IDENTIFIER, "Expected struct name");
+        consume(TokenType::LBRACE, "Expected '{'");
+        while (!match(TokenType::RBRACE) && !isAtEnd()) {
+            parseStatement();
+        }
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::StructDecl, name.line, name.column });
+    }
+
+    ASTNodePtr parseClass() {
+        Token name = consume(TokenType::IDENTIFIER, "Expected class name");
+        consume(TokenType::LBRACE, "Expected '{'");
+        while (!match(TokenType::RBRACE) && !isAtEnd()) {
+            parseStatement();
+        }
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::ClassDecl, name.line, name.column });
+    }
+
+    ASTNodePtr parseAlloc() {
+        Token typenameTok = consume(TokenType::IDENTIFIER, "Expected type name for allocation");
+        consume(TokenType::SEMICOLON, "Expected ';' after allocation");
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Memory, typenameTok.line, typenameTok.column });
+    }
+
+    ASTNodePtr parseFree() {
+        Token var = consume(TokenType::IDENTIFIER, "Expected variable name to free");
+        consume(TokenType::SEMICOLON, "Expected ';' after free");
+        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Memory, var.line, var.column });
+    }
+
+    // ... (keep existing methods untouched)
+};
+
+#include "TokenType.h"
+#include "ast.h"
+#include <vector>
+#include <stdexcept>
+#include <memory>
+
+class Parser {
+public:
+    Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
+
+    std::shared_ptr<ProgramNode> parseProgram() {
+        auto program = std::make_shared<ProgramNode>();
+        while (!isAtEnd()) {
+            auto stmt = parseStatement();
+            if (stmt) program->body.push_back(stmt);
+        }
+        return program;
+    }
+
+private:
+    const std::vector<Token>& tokens;
+    size_t current;
+
+    Token peek() const { return tokens[current]; }
+    Token advance() { return tokens[current++]; }
+    bool isAtEnd() const { return peek().type == TokenType::END_OF_FILE; }
+    bool match(TokenType type) { if (peek().type == type) { advance(); return true; } return false; }
+
+    Token consume(TokenType type, const std::string& errorMessage) {
+        if (match(type)) return tokens[current - 1];
+        throw std::runtime_error("Parse Error: " + errorMessage);
+    }
+
+    ASTNodePtr parseStatement() {
+        if (match(TokenType::INIT)) return parseInit();
+        if (match(TokenType::IF)) return parseIf();
+        if (match(TokenType::FOR)) return parseFor();
+        if (match(TokenType::WHILE)) return parseWhile();
+        if (match(TokenType::LOOP)) return parseLoop();
+        if (match(TokenType::REPEAT)) return parseRepeat();
+        if (match(TokenType::TRY)) return parseTryCatch();
+        if (match(TokenType::PIPE)) return parseMacro();
+        if (match(TokenType::FUNC)) return parseFuncDecl();
+        if (match(TokenType::RETURN)) return parseReturn();
         return nullptr;
     }
 
