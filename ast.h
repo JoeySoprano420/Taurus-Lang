@@ -1,11 +1,36 @@
 #pragma once
 #include <string>
-#include <memory>
 #include <vector>
+#include <memory>
 
 enum class ASTNodeType {
-    Program, Init, Assign, If, For, While, Return, Expression, Block,
-    Function, Macro, Literal, Identifier, BinaryExpr, UnaryExpr
+    Program, Block, Identifier, Literal,
+
+    // Statements
+    Init, Assign, Declaration, Expression,
+    If, For, While, Loop, Repeat,
+    Break, Continue, Return, Throw, Defer, TryCatch,
+    Function, Call, Macro, Await, Async, Mutex,
+
+    // Structures
+    StructDecl, ClassDecl, FuncDecl,
+    Tuple, List, Array, Matrix, Vector,
+
+    // Operations
+    BinaryExpr, UnaryExpr, LogicalExpr, ComparisonExpr,
+    CallExpr, IndexExpr, MemberAccess,
+
+    // Pattern Matching
+    Match, Case, DefaultCase,
+
+    // I/O & Interop
+    IOCommand, FileOp, NetworkOp,
+
+    // Events & Triggers
+    EventBlock, Scheduler, TriggerBlock,
+
+    // Meta & Validation
+    Assertion, ProofCheck, Reference, StateCheck
 };
 
 struct ASTNode {
@@ -17,58 +42,51 @@ struct ASTNode {
 
 using ASTNodePtr = std::shared_ptr<ASTNode>;
 
-struct Identifier : ASTNode {
+struct ProgramNode : ASTNode {
+    std::vector<ASTNodePtr> body;
+    ProgramNode() { type = ASTNodeType::Program; }
+};
+
+struct IdentifierNode : ASTNode {
     std::string name;
-    Identifier(const std::string& n, int l, int c)
+    IdentifierNode(const std::string& n, int l, int c)
         : name(n) { type = ASTNodeType::Identifier; line = l; column = c; }
 };
 
-struct Literal : ASTNode {
+struct LiteralNode : ASTNode {
     std::string value;
-    Literal(const std::string& v, int l, int c)
-        : value(v) { type = ASTNodeType::Literal; line = l; column = c; }
+    std::string literalType; // int, float, string, bool, null
+    LiteralNode(const std::string& v, const std::string& t, int l, int c)
+        : value(v), literalType(t) { type = ASTNodeType::Literal; line = l; column = c; }
 };
 
-struct Expression : ASTNode {
+struct BinaryExprNode : ASTNode {
     ASTNodePtr left;
     std::string op;
     ASTNodePtr right;
-    Expression(ASTNodePtr l, const std::string& o, ASTNodePtr r, int ln, int col)
+    BinaryExprNode(ASTNodePtr l, const std::string& o, ASTNodePtr r, int ln, int col)
         : left(l), op(o), right(r) { type = ASTNodeType::BinaryExpr; line = ln; column = col; }
 };
 
-struct InitStmt : ASTNode {
-    std::string varName;
-    ASTNodePtr value;
-    InitStmt(const std::string& v, ASTNodePtr val, int ln, int col)
-        : varName(v), value(val) { type = ASTNodeType::Init; line = ln; column = col; }
-};
-
-struct AssignStmt : ASTNode {
-    std::string varName;
-    ASTNodePtr value;
-    AssignStmt(const std::string& v, ASTNodePtr val, int ln, int col)
-        : varName(v), value(val) { type = ASTNodeType::Assign; line = ln; column = col; }
-};
-
-struct ReturnStmt : ASTNode {
-    ReturnStmt(int ln, int col) { type = ASTNodeType::Return; line = ln; column = col; }
-};
-
-struct IfStmt : ASTNode {
+struct IfNode : ASTNode {
     ASTNodePtr condition;
     std::vector<ASTNodePtr> thenBlock;
     std::vector<ASTNodePtr> elseBlock;
-    IfStmt(ASTNodePtr cond, int ln, int col)
-        : condition(cond) { type = ASTNodeType::If; line = ln; column = col; }
+    IfNode(int ln, int col) { type = ASTNodeType::If; line = ln; column = col; }
 };
 
-struct BlockStmt : ASTNode {
-    std::vector<ASTNodePtr> statements;
-    BlockStmt() { type = ASTNodeType::Block; }
+struct ForNode : ASTNode {
+    ASTNodePtr initializer;
+    ASTNodePtr condition;
+    ASTNodePtr increment;
+    std::vector<ASTNodePtr> body;
+    ForNode(int ln, int col) { type = ASTNodeType::For; line = ln; column = col; }
 };
 
-struct Program : ASTNode {
-    std::vector<ASTNodePtr> statements;
-    Program() { type = ASTNodeType::Program; }
+struct FuncDeclNode : ASTNode {
+    std::string name;
+    std::vector<std::string> parameters;
+    std::vector<ASTNodePtr> body;
+    FuncDeclNode(const std::string& n, int ln, int col)
+        : name(n) { type = ASTNodeType::FuncDecl; line = ln; column = col; }
 };
