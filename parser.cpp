@@ -533,3 +533,60 @@ private:
     ASTNodePtr parseExpression();
 };
 
+#include "TokenType.h"
+#include "ast.h"
+#include <vector>
+#include <stdexcept>
+#include <memory>
+
+class Parser {
+public:
+    Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
+
+    std::shared_ptr<ProgramNode> parseProgram() {
+        auto program = std::make_shared<ProgramNode>();
+        while (!isAtEnd()) {
+            auto stmt = parseStatement();
+            if (stmt) program->body.push_back(stmt);
+        }
+        return program;
+    }
+
+private:
+    const std::vector<Token>& tokens;
+    size_t current;
+
+    Token peek() const {
+        if (isAtEnd()) return Token{TokenType::END_OF_FILE}; // Prevents out-of-bounds access
+        return tokens[current];
+    }
+
+    Token advance() {
+        if (!isAtEnd()) return tokens[current++];
+        return Token{TokenType::END_OF_FILE}; // Prevents incrementing out of bounds
+    }
+
+    bool isAtEnd() const {
+        return current >= tokens.size() || peek().type == TokenType::END_OF_FILE;
+    }
+
+    bool match(TokenType type) {
+        if (!isAtEnd() && peek().type == type) {
+            advance();
+            return true;
+        }
+        return false;
+    }
+
+    Token consume(TokenType type, const std::string& errorMessage) {
+        if (match(type)) return tokens[current - 1];
+        throw std::runtime_error("Parse Error: " + errorMessage + " at token " + std::to_string(current));
+    }
+
+    ASTNodePtr parseStatement() {
+        if (match(TokenType::INIT)) return parseInit();
+        if (match(TokenType::IF)) return parseIf();
+        
+        throw std::runtime_error("Unexpected token at index " + std::to_string(current)); // Adds error handling for unexpected tokens
+    }
+};
