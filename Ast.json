@@ -1,0 +1,79 @@
+{
+    "type": "Program",
+    "statements": [
+        {
+            "type": "InitStmt",
+            "name": "x",
+            "value": {
+                "type": "Literal",
+                "value": "10",
+                "line": 1,
+                "column": 13
+            },
+            "line": 1,
+            "column": 6
+        },
+        {
+            "type": "IfStmt",
+            "condition": {
+                "type": "Expression",
+                "left": {
+                    "type": "Identifier",
+                    "name": "x",
+                    "line": 2,
+                    "column": 5
+                },
+                "operator": ">",
+                "right": {
+                    "type": "Literal",
+                    "value": "5",
+                    "line": 2,
+                    "column": 9
+                },
+                "line": 2,
+                "column": 5
+            },
+            "thenBlock": [
+                {
+                    "type": "BlockStmt",
+                    "statements": [
+                        {
+                            "type": "AssignStmt",
+                            "name": "x",
+                            "value": {
+                                "type": "Expression",
+                                "left": {
+                                    "type": "Identifier",
+                                    "name": "x",
+                                    "line": 4,
+                                    "column": 9
+                                },
+                                "operator": "+",
+                                "right": {
+                                    "type": "Literal",
+                                    "value": "1",
+                                    "line": 4,
+                                    "column": 13
+                                },
+                                "line": 4,
+                                "column": 9
+                            },
+                            "line": 4,
+                            "column": 5
+                        }
+                    ],
+                    "line": 3,
+                    "column": 5
+                },
+                {
+                    "type": "ReturnStmt",
+                    "line": 6,
+                    "column": 5
+                }
+            ],
+            "elseBlock": [],
+            "line": 2,
+            "column": 1
+        }
+    ]
+}
