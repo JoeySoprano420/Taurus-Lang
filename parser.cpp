@@ -8,11 +8,10 @@ class Parser {
 public:
     Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
 
-    std::shared_ptr<ProgramNode> parseProgram() {
-        auto program = std::make_shared<ProgramNode>();
+    std::shared_ptr<Program> parseProgram() {
+        auto program = std::make_shared<Program>();
         while (!isAtEnd()) {
-            auto stmt = parseStatement();
-            if (stmt) program->body.push_back(stmt);
+            program->statements.push_back(parseStatement());
         }
         return program;
     }
@@ -23,570 +22,140 @@ private:
 
     Token peek() const { return tokens[current]; }
     Token advance() { return tokens[current++]; }
-    bool isAtEnd() const { return peek().type == TokenType::END_OF_FILE; }
-    bool match(TokenType type) { if (peek().type == type) { advance(); return true; } return false; }
+    bool match(TokenType type) {
+        if (peek().type == type) { advance(); return true; }
+        return false;
+    }
 
-    Token consume(TokenType type, const std::string& errorMessage) {
+    bool isAtEnd() const { return peek().type == TokenType::END_OF_FILE; }
+
+    Token consume(TokenType type, const std::string& errMsg) {
         if (match(type)) return tokens[current - 1];
-        throw std::runtime_error("Parse Error: " + errorMessage);
+        throw std::runtime_error("Parse error at line " + std::to_string(peek().line) + ": " + errMsg);
     }
 
     ASTNodePtr parseStatement() {
         if (match(TokenType::INIT)) return parseInit();
+        if (match(TokenType::VAR) || match(TokenType::VAL)) return parseDeclaration();
+        if (match(TokenType::IDENTIFIER)) return parseAssignment();
         if (match(TokenType::IF)) return parseIf();
         if (match(TokenType::FOR)) return parseFor();
         if (match(TokenType::WHILE)) return parseWhile();
         if (match(TokenType::LOOP)) return parseLoop();
         if (match(TokenType::REPEAT)) return parseRepeat();
         if (match(TokenType::TRY)) return parseTryCatch();
-        if (match(TokenType::PIPE)) return parseMacro();
-        if (match(TokenType::FUNC)) return parseFuncDecl();
-        if (match(TokenType::RETURN)) return parseReturn();
-        if (match(TokenType::MATCH)) return parseMatch();
+        if (match(TokenType::THROW)) return parseThrow();
+        if (match(TokenType::BREAK)) return parseBreak();
+        if (match(TokenType::CONTINUE)) return parseContinue();
+        if (match(TokenType::DEFER)) return parseDefer();
         if (match(TokenType::ASYNC)) return parseAsync();
         if (match(TokenType::AWAIT)) return parseAwait();
-        if (match(TokenType::MUTEX)) return parseMutex();
-        if (match(TokenType::STRUCT)) return parseStruct();
-        if (match(TokenType::CLASS)) return parseClass();
-        if (match(TokenType::ALOC)) return parseAlloc();
-        if (match(TokenType::FREE)) return parseFree();
-        return nullptr;
-    }
-
-    ASTNodePtr parseMatch() {
-        consume(TokenType::LPAREN, "Expected '(' after match");
-        auto expr = parseExpression();
-        consume(TokenType::RPAREN, "Expected ')'");
-        consume(TokenType::LBRACE, "Expected '{'");
-        while (!match(TokenType::RBRACE) && !isAtEnd()) {
-            if (match(TokenType::CASE)) {
-                parseExpression();
-                consume(TokenType::COLON, "Expected ':' after case");
-                parseBlock();
-            } else if (match(TokenType::DEFAULT)) {
-                consume(TokenType::COLON, "Expected ':' after default");
-                parseBlock();
-            }
-        }
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Match, expr->line, expr->column });
-    }
-
-    ASTNodePtr parseAsync() {
-        auto block = parseBlock();
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Async, block.front()->line, block.front()->column });
-    }
-
-    ASTNodePtr parseAwait() {
-        auto expr = parseExpression();
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Await, expr->line, expr->column });
-    }
-
-    ASTNodePtr parseMutex() {
-        auto block = parseBlock();
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Mutex, block.front()->line, block.front()->column });
-    }
-
-    ASTNodePtr parseStruct() {
-        Token name = consume(TokenType::IDENTIFIER, "Expected struct name");
-        consume(TokenType::LBRACE, "Expected '{'");
-        while (!match(TokenType::RBRACE) && !isAtEnd()) {
-            parseStatement();
-        }
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::StructDecl, name.line, name.column });
-    }
-
-    ASTNodePtr parseClass() {
-        Token name = consume(TokenType::IDENTIFIER, "Expected class name");
-        consume(TokenType::LBRACE, "Expected '{'");
-        while (!match(TokenType::RBRACE) && !isAtEnd()) {
-            parseStatement();
-        }
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::ClassDecl, name.line, name.column });
-    }
-
-    ASTNodePtr parseAlloc() {
-        Token typenameTok = consume(TokenType::IDENTIFIER, "Expected type name for allocation");
-        consume(TokenType::SEMICOLON, "Expected ';' after allocation");
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Memory, typenameTok.line, typenameTok.column });
-    }
-
-    ASTNodePtr parseFree() {
-        Token var = consume(TokenType::IDENTIFIER, "Expected variable name to free");
-        consume(TokenType::SEMICOLON, "Expected ';' after free");
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Memory, var.line, var.column });
-    }
-
-    // ... (keep existing methods untouched)
-};
-
-#include "TokenType.h"
-#include "ast.h"
-#include <vector>
-#include <stdexcept>
-#include <memory>
-
-class Parser {
-public:
-    Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
-
-    std::shared_ptr<ProgramNode> parseProgram() {
-        auto program = std::make_shared<ProgramNode>();
-        while (!isAtEnd()) {
-            auto stmt = parseStatement();
-            if (stmt) program->body.push_back(stmt);
-        }
-        return program;
-    }
-
-private:
-    const std::vector<Token>& tokens;
-    size_t current;
-
-    Token peek() const { return tokens[current]; }
-    Token advance() { return tokens[current++]; }
-    bool isAtEnd() const { return peek().type == TokenType::END_OF_FILE; }
-    bool match(TokenType type) { if (peek().type == type) { advance(); return true; } return false; }
-
-    Token consume(TokenType type, const std::string& errorMessage) {
-        if (match(type)) return tokens[current - 1];
-        throw std::runtime_error("Parse Error: " + errorMessage);
-    }
-
-    ASTNodePtr parseStatement() {
-        if (match(TokenType::INIT)) return parseInit();
-        if (match(TokenType::IF)) return parseIf();
-        if (match(TokenType::FOR)) return parseFor();
-        if (match(TokenType::WHILE)) return parseWhile();
-        if (match(TokenType::LOOP)) return parseLoop();
-        if (match(TokenType::REPEAT)) return parseRepeat();
-        if (match(TokenType::TRY)) return parseTryCatch();
+        if (match(TokenType::COROUTINE)) return parseCoroutine();
+        if (match(TokenType::YIELD)) return parseYield();
         if (match(TokenType::PIPE)) return parseMacro();
-        if (match(TokenType::FUNC)) return parseFuncDecl();
-        if (match(TokenType::RETURN)) return parseReturn();
-        return nullptr;
+        if (match(TokenType::MATCH)) return parseMatch();
+        if (match(TokenType::RETURN)) return std::make_shared<ReturnStmt>(peek().line, peek().column);
+        if (match(TokenType::START)) return parseFunction();
+        return parseExpression();
     }
 
     ASTNodePtr parseInit() {
-        Token name = consume(TokenType::IDENTIFIER, "Expected variable name after Init");
+        Token var = consume(TokenType::IDENTIFIER, "Expected variable name after Init");
         consume(TokenType::ASSIGN, "Expected '=' after variable name");
         auto value = parseExpression();
-        consume(TokenType::SEMICOLON, "Expected ';'");
-        return std::make_shared<InitStmt>("InitStmt", name.line, name.column, name.lexeme, std::dynamic_pointer_cast<LiteralNode>(value));
+        consume(TokenType::SEMICOLON, "Expected ';' after Init");
+        return std::make_shared<InitStmt>(var.lexeme, value, var.line, var.column);
     }
 
-    ASTNodePtr parseReturn() {
-        int line = peek().line;
-        int col = peek().column;
-        consume(TokenType::SEMICOLON, "Expected ';' after Return");
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Return, line, col });
+    ASTNodePtr parseDeclaration() {
+        Token type = previous();
+        Token var = consume(TokenType::IDENTIFIER, "Expected variable name");
+        consume(TokenType::ASSIGN, "Expected '=' after variable name");
+        auto value = parseExpression();
+        consume(TokenType::SEMICOLON, "Expected ';' after declaration");
+        return std::make_shared<InitStmt>(var.lexeme, value, var.line, var.column);
     }
 
-    ASTNodePtr parseIf() {
-        consume(TokenType::LPAREN, "Expected '('");
-        auto condition = parseExpression();
-        consume(TokenType::RPAREN, "Expected ')'");
-
-        auto ifNode = std::make_shared<IfNode>(peek().line, peek().column);
-        ifNode->thenBlock = parseBlock();
-
-        if (match(TokenType::ELSE)) {
-            ifNode->elseBlock = parseBlock();
-        }
-        return ifNode;
-    }
-
-    std::vector<ASTNodePtr> parseBlock() {
-        consume(TokenType::LBRACE, "Expected '{'");
-        std::vector<ASTNodePtr> block;
-        while (!match(TokenType::RBRACE) && !isAtEnd()) {
-            auto stmt = parseStatement();
-            if (stmt) block.push_back(stmt);
-        }
-        return block;
-    }
-
-    ASTNodePtr parseFor() {
-        consume(TokenType::LPAREN, "Expected '('");
-        auto init = parseInit();
-        auto cond = parseExpression();
-        consume(TokenType::SEMICOLON, "Expected ';' in for");
-        auto incr = parseExpression();
-        consume(TokenType::RPAREN, "Expected ')'");
-
-        auto node = std::make_shared<ForNode>(peek().line, peek().column);
-        node->initializer = init;
-        node->condition = cond;
-        node->increment = incr;
-        node->body = parseBlock();
-        return node;
-    }
-
-    ASTNodePtr parseWhile() {
-        consume(TokenType::LPAREN, "Expected '(' after while");
-        auto condition = parseExpression();
-        consume(TokenType::RPAREN, "Expected ')'");
-        auto node = std::make_shared<ForNode>(peek().line, peek().column); // Reusing ForNode as a base loop node
-        node->condition = condition;
-        node->body = parseBlock();
-        return node;
-    }
-
-    ASTNodePtr parseLoop() {
-        auto node = std::make_shared<ForNode>(peek().line, peek().column);
-        node->body = parseBlock();
-        return node;
-    }
-
-    ASTNodePtr parseRepeat() {
-        auto node = std::make_shared<ForNode>(peek().line, peek().column);
-        node->body = parseBlock();
-        return node;
-    }
-
-    ASTNodePtr parseTryCatch() {
-        auto node = std::make_shared<ASTNode>(ASTNode{ ASTNodeType::TryCatch, peek().line, peek().column });
-        parseBlock();
-        consume(TokenType::CATCH, "Expected 'catch' after try block");
-        parseBlock();
-        return node;
-    }
-
-    ASTNodePtr parseMacro() {
-        Token name = consume(TokenType::IDENTIFIER, "Expected macro name");
-        consume(TokenType::COLON, "Expected ':' after macro name");
-        while (!match(TokenType::PIPE) && !isAtEnd()) advance();
-        return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::Macro, name.line, name.column });
-    }
-
-    ASTNodePtr parseFuncDecl() {
-        Token name = consume(TokenType::IDENTIFIER, "Expected function name");
-        consume(TokenType::LPAREN, "Expected '('");
-
-        std::vector<std::string> params;
-        if (peek().type != TokenType::RPAREN) {
-            do {
-                Token param = consume(TokenType::IDENTIFIER, "Expected parameter name");
-                params.push_back(param.lexeme);
-            } while (match(TokenType::COMMA));
-        }
-        consume(TokenType::RPAREN, "Expected ')'");
-
-        auto func = std::make_shared<FuncDeclNode>(name.lexeme, name.line, name.column);
-        func->parameters = params;
-        func->body = parseBlock();
-        return func;
+    ASTNodePtr parseAssignment() {
+        Token var = tokens[current - 1];
+        consume(TokenType::ASSIGN, "Expected '=' in assignment");
+        auto value = parseExpression();
+        consume(TokenType::SEMICOLON, "Expected ';' after assignment");
+        return std::make_shared<AssignStmt>(var.lexeme, value, var.line, var.column);
     }
 
     ASTNodePtr parseExpression() {
-        return parseEquality();
+        return parseBinary();
     }
 
-    ASTNodePtr parseEquality() {
-        auto expr = parseComparison();
-        while (match(TokenType::EQ) || match(TokenType::NEQ)) {
-            std::string op = tokens[current - 1].lexeme;
-            auto right = parseComparison();
-            expr = std::make_shared<BinaryExprNode>(expr, op, right, peek().line, peek().column);
+    ASTNodePtr parseBinary(int precedence = 0) {
+        auto left = parsePrimary();
+        while (isBinaryOperator(peek().type)) {
+            std::string op = advance().lexeme;
+            auto right = parsePrimary();
+            left = std::make_shared<Expression>(left, op, right, peek().line, peek().column);
         }
-        return expr;
+        return left;
     }
 
-    ASTNodePtr parseComparison() {
-        auto expr = parseTerm();
-        while (match(TokenType::LT) || match(TokenType::GT) || match(TokenType::LE) || match(TokenType::GE)) {
-            std::string op = tokens[current - 1].lexeme;
-            auto right = parseTerm();
-            expr = std::make_shared<BinaryExprNode>(expr, op, right, peek().line, peek().column);
-        }
-        return expr;
-    }
-
-    ASTNodePtr parseTerm() {
-        auto expr = parseFactor();
-        while (match(TokenType::PLUS) || match(TokenType::MINUS)) {
-            std::string op = tokens[current - 1].lexeme;
-            auto right = parseFactor();
-            expr = std::make_shared<BinaryExprNode>(expr, op, right, peek().line, peek().column);
-        }
-        return expr;
-    }
-
-    ASTNodePtr parseFactor() {
-        auto expr = parseUnary();
-        while (match(TokenType::MUL) || match(TokenType::DIV) || match(TokenType::MOD)) {
-            std::string op = tokens[current - 1].lexeme;
-            auto right = parseUnary();
-            expr = std::make_shared<BinaryExprNode>(expr, op, right, peek().line, peek().column);
-        }
-        return expr;
-    }
-
-    ASTNodePtr parseUnary() {
-        if (match(TokenType::NOT) || match(TokenType::MINUS)) {
-            std::string op = tokens[current - 1].lexeme;
-            auto right = parseUnary();
-            return std::make_shared<BinaryExprNode>(nullptr, op, right, peek().line, peek().column);
-        }
-        return parsePrimary();
+    bool isBinaryOperator(TokenType type) {
+        return type == TokenType::PLUS || type == TokenType::MINUS ||
+               type == TokenType::MUL  || type == TokenType::DIV  ||
+               type == TokenType::MOD  || type == TokenType::EQ   ||
+               type == TokenType::LT   || type == TokenType::GT;
     }
 
     ASTNodePtr parsePrimary() {
         Token token = advance();
         switch (token.type) {
             case TokenType::NUMBER:
-                return std::make_shared<LiteralNode>(token.lexeme, "int", token.line, token.column);
-            case TokenType::STRING_LITERAL:
-                return std::make_shared<LiteralNode>(token.lexeme, "string", token.line, token.column);
+            case TokenType::STRING:
+                return std::make_shared<Literal>(token.lexeme, token.line, token.column);
             case TokenType::IDENTIFIER:
-                return std::make_shared<IdentifierNode>(token.lexeme, token.line, token.column);
+                return std::make_shared<Identifier>(token.lexeme, token.line, token.column);
             case TokenType::LPAREN: {
                 auto expr = parseExpression();
                 consume(TokenType::RPAREN, "Expected ')'");
                 return expr;
             }
             default:
-                throw std::runtime_error("Unexpected token in expression");
+                throw std::runtime_error("Unexpected token: " + token.lexeme);
         }
+    }
+
+    ASTNodePtr parseIf();
+    ASTNodePtr parseFor();
+    ASTNodePtr parseWhile();
+    ASTNodePtr parseLoop();
+    ASTNodePtr parseRepeat();
+    ASTNodePtr parseTryCatch();
+    ASTNodePtr parseThrow();
+    ASTNodePtr parseBreak();
+    ASTNodePtr parseContinue();
+    ASTNodePtr parseDefer();
+    ASTNodePtr parseAsync();
+    ASTNodePtr parseAwait();
+    ASTNodePtr parseCoroutine();
+    ASTNodePtr parseYield();
+    ASTNodePtr parseMacro();
+    ASTNodePtr parseMatch();
+    ASTNodePtr parseFunction();
+
+    std::vector<ASTNodePtr> parseBlock() {
+        consume(TokenType::LBRACE, "Expected '{'");
+        std::vector<ASTNodePtr> block;
+        while (!match(TokenType::RBRACE) && !isAtEnd()) {
+            block.push_back(parseStatement());
+        }
+        return block;
+    }
+
+    ASTNodePtr parseFunction() {
+        auto func = std::make_shared<BlockStmt>();
+        func->statements = parseBlock();
+        consume(TokenType::RETURN, "Expected 'Return;' after block");
+        consume(TokenType::SEMICOLON, "Expected ';' after Return");
+        return func;
     }
 };
 
-#include "TokenType.h"
-#include "ast.h"
-#include <vector>
-#include <stdexcept>
-#include <memory>
-#include <unordered_map>
-#include <optional>
-#include <functional>
-
-class Parser {
-public:
-    Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
-
-    std::shared_ptr<ProgramNode> parseProgram() {
-        auto program = std::make_shared<ProgramNode>();
-        while (!isAtEnd()) {
-            auto stmt = parseStatement();
-            if (stmt) program->body.push_back(stmt);
-        }
-        return program;
-    }
-
-private:
-    const std::vector<Token>& tokens;
-    size_t current;
-
-    Token peek() const { return tokens[current]; }
-    Token previous() const { return tokens[current - 1]; }
-    Token advance() { return isAtEnd() ? tokens[current] : tokens[current++]; }
-    bool isAtEnd() const { return peek().type == TokenType::END_OF_FILE; }
-    bool match(TokenType type) { if (peek().type == type) { advance(); return true; } return false; }
-
-    Token consume(TokenType type, const std::string& errorMessage) {
-        if (match(type)) return previous();
-        throw std::runtime_error("Parse Error: " + errorMessage);
-    }
-
-    bool check(TokenType type) const { return !isAtEnd() && peek().type == type; }
-
-    ASTNodePtr parseStatement();
-
-    // === Extended Taurus Lang Parsing ===
-
-    ASTNodePtr parseExtendedKeyword() {
-        Token token = peek();
-        switch (token.type) {
-            case TokenType::INSTEAD_OF:
-            case TokenType::UNROLL:
-            case TokenType::REQUEST:
-            case TokenType::BYPASS:
-            case TokenType::DURATION:
-            case TokenType::EXCEPT:
-            case TokenType::DEFER:
-            case TokenType::PAUSE:
-            case TokenType::RESUME:
-            case TokenType::LISTEN:
-            case TokenType::WATCH:
-            case TokenType::ENCRYPT:
-            case TokenType::OBFUSCATE:
-            case TokenType::CIPHER:
-            case TokenType::PING:
-            case TokenType::BLOCK:
-            case TokenType::DENY:
-            case TokenType::ALLOW:
-            case TokenType::ASSIGN:
-            case TokenType::REG:
-            case TokenType::CHECK:
-            case TokenType::SUM:
-            case TokenType::CHECKSUM:
-            case TokenType::STATES:
-            case TokenType::TRUTHS:
-            case TokenType::MENU:
-            case TokenType::FLAG:
-            case TokenType::ERROR:
-            case TokenType::WARNING:
-            case TokenType::COMMENT:
-            case TokenType::WHITESPACE:
-            case TokenType::INDENT:
-            case TokenType::RAISE:
-            case TokenType::COUNTERS:
-            case TokenType::CHECKPOINTS:
-            case TokenType::LISTS:
-            case TokenType::NESTS:
-            case TokenType::BRANCHES:
-            case TokenType::NODES:
-            case TokenType::CHILDREN:
-            case TokenType::DERIVATIVES:
-            case TokenType::SEQUENCE:
-            case TokenType::QUERY:
-            case TokenType::LOOKUP:
-            case TokenType::CONTEXT:
-            case TokenType::WRAP:
-            case TokenType::INTEROP:
-            case TokenType::TASK:
-            case TokenType::SIMULATE:
-            case TokenType::POLL:
-            case TokenType::ROTATE:
-            case TokenType::FALLBACKS:
-            case TokenType::ROUTINES:
-            case TokenType::CALLS:
-            case TokenType::IDENTIFIERS:
-            case TokenType::DESCRIPTORS:
-            case TokenType::CATEGORIES:
-            case TokenType::LABELS:
-            case TokenType::FILE:
-            case TokenType::MAKE:
-            case TokenType::RUN:
-            case TokenType::ACCEPT:
-            case TokenType::COLLECT:
-            case TokenType::DO:
-            case TokenType::DELIMITERS:
-            case TokenType::BOUNDARIES:
-            case TokenType::SCHEDULERS:
-            case TokenType::TRIGGERS:
-            case TokenType::EVENTS:
-            case TokenType::APPEND:
-            case TokenType::MATRIX:
-            case TokenType::VECTOR:
-            case TokenType::FOLD:
-            case TokenType::ENVELOPE:
-            case TokenType::CAPSULE:
-            case TokenType::RIG:
-            case TokenType::CHAIN:
-            case TokenType::FOLDER:
-            case TokenType::SOCKET:
-            case TokenType::API:
-            case TokenType::INSPECT:
-            case TokenType::REPLACE:
-            case TokenType::DATA:
-            case TokenType::TRUEVAL:
-            case TokenType::FALSEVAL:
-            case TokenType::NULLVAL:
-            case TokenType::POINTERS:
-            case TokenType::ACTIONS:
-            case TokenType::RANGE:
-            case TokenType::KEY:
-            case TokenType::SCALE:
-            case TokenType::WEIGHTS:
-            case TokenType::REFER:
-            case TokenType::CROSSREF:
-            case TokenType::VALIDATE:
-            case TokenType::SECURE:
-            case TokenType::UNSECURE:
-            case TokenType::SAFE:
-            case TokenType::PRIVATE:
-            case TokenType::PUBLIC:
-            case TokenType::RESULT:
-            case TokenType::RESOLVE:
-            case TokenType::MEMORY:
-            case TokenType::SWEEP:
-            case TokenType::GARBAGE:
-            case TokenType::FILTER:
-            case TokenType::PROXY:
-            case TokenType::PROBE:
-            case TokenType::PRIMITIVES:
-            case TokenType::CONDITIONALS:
-            case TokenType::BOOLEANS:
-            case TokenType::LOGIC:
-            case TokenType::TRICKLE:
-            case TokenType::ALT:
-            case TokenType::SUBVERT:
-                advance();
-                return std::make_shared<ASTNode>(ASTNode{ ASTNodeType::KeywordAction, token.line, token.column });
-            default:
-                return nullptr;
-        }
-    }
-
-    ASTNodePtr parseNamespace();
-    ASTNodePtr parseLabel();
-    ASTNodePtr parseGoto();
-    ASTNodePtr parseArray();
-    ASTNodePtr parseTuple();
-    ASTNodePtr parseMap();
-    ASTNodePtr parseProofCheck();
-    ASTNodePtr parseModifiers();
-    ASTNodePtr parseSubroutine();
-    ASTNodePtr parseRecurse();
-
-    std::vector<ASTNodePtr> parseBlock();
-    ASTNodePtr parseExpression();
-};
-
-#include "TokenType.h"
-#include "ast.h"
-#include <vector>
-#include <stdexcept>
-#include <memory>
-
-class Parser {
-public:
-    Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
-
-    std::shared_ptr<ProgramNode> parseProgram() {
-        auto program = std::make_shared<ProgramNode>();
-        while (!isAtEnd()) {
-            auto stmt = parseStatement();
-            if (stmt) program->body.push_back(stmt);
-        }
-        return program;
-    }
-
-private:
-    const std::vector<Token>& tokens;
-    size_t current;
-
-    Token peek() const {
-        if (isAtEnd()) return Token{TokenType::END_OF_FILE}; // Prevents out-of-bounds access
-        return tokens[current];
-    }
-
-    Token advance() {
-        if (!isAtEnd()) return tokens[current++];
-        return Token{TokenType::END_OF_FILE}; // Prevents incrementing out of bounds
-    }
-
-    bool isAtEnd() const {
-        return current >= tokens.size() || peek().type == TokenType::END_OF_FILE;
-    }
-
-    bool match(TokenType type) {
-        if (!isAtEnd() && peek().type == type) {
-            advance();
-            return true;
-        }
-        return false;
-    }
-
-    Token consume(TokenType type, const std::string& errorMessage) {
-        if (match(type)) return tokens[current - 1];
-        throw std::runtime_error("Parse Error: " + errorMessage + " at token " + std::to_string(current));
-    }
-
-    ASTNodePtr parseStatement() {
-        if (match(TokenType::INIT)) return parseInit();
-        if (match(TokenType::IF)) return parseIf();
-        
-        throw std::runtime_error("Unexpected token at index " + std::to_string(current)); // Adds error handling for unexpected tokens
-    }
-};
